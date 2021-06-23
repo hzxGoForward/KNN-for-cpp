@@ -1,11 +1,13 @@
 #include<iostream>
 #include<math.h>
 #include<map>
+#include <cassert>
+#include<fstream>
 using namespace std;
+
 const int MaxCol= 10;
 const int MaxRow= 10000;
 const int MaxK = 10;
-#include<fstream>
 
 class KNN{
   private:
@@ -44,7 +46,7 @@ class KNN{
         fin>>TrainLabels[i];
       }
 
-      AutoNorm();
+      // AutoNorm();
     }
 
 

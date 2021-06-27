@@ -1,20 +1,15 @@
 #include "knn.h"
+#include <vector>
 
-const int MaxCol = 10;
-const int MaxRow = 1000;
-const int MaxK = 10;
-int TrainData[MaxRow][MaxCol];
-int TestData[MaxRow][MaxCol];
-int TrainLabels[MaxRow];
-int TestLabels[MaxRow];
-
-std::vector<std::string> mysplit(const std::string& str, const std::string &delim){
+std::vector<std::string> mysplit(const std::string &str, const std::string &delim)
+{
     std::vector<std::string> res;
-    if("" == str)
+    if ("" == str)
         return res;
     std::string::size_type s = 0;
     std::string::size_type e = str.find(delim, s);
-    while(e!=str.npos){
+    while (e != str.npos)
+    {
         auto ts = std::string(&str[s], e - s);
         res.push_back(ts);
         s = e + 1;
@@ -24,148 +19,133 @@ std::vector<std::string> mysplit(const std::string& str, const std::string &deli
     return res;
 }
 
-void KNN::readData(const std::vector<std::string>& data)
+void KNN::readData(const std::vector<int> &data)
 {
     
-    int idx = 0;
-    for (int i = 0; i < m_test_row; i++)
+    static int test_train = 0;
+    static int test_test = 0;
+
+    m_TrainData.resize(m_train_row * m_column, 0);
+    m_TestData.resize(m_test_row * m_column, 0);
+    m_Trainlabels.resize(m_train_row, 0);
+    m_TestLabels.resize(m_test_row, 0);
+
+    int i = 0;
+    int test_data_idx = 0;
+    int test_label_idx = 0;
+    // reading test data
+    while(i < data.size())
     {
-        std::vector<std::string> vdata = mysplit(data[idx++], "\t");
-        for (int j = 0; j < m_column; j++)
-        {
-            TestData[i][j] = std::stoi(vdata[j]);
-        }
-        TestLabels[i] = std::stoi(vdata[m_column]);
+        for (int j = 0; j < m_column; ++j)
+            m_TestData[test_data_idx++] = data[i++];
+        m_TestLabels[test_label_idx++] = data[i++];
+        if( test_label_idx >= m_test_row)
+            break;
     }
 
-    for (int i = 0; i < m_train_row; i++)
     {
-       std::vector<std::string> vdata = mysplit(data[idx++], "\t");
-        for (int j = 0; j < m_column; j++)
+        std::cout << "TestData....\n";
+        int output_cnt = 0;
+        
+        for (auto&e: m_TestData)
         {
-            TrainData[i][j] = std::stoi(vdata[j]);
+            std::cout << e << " ";
+            ++output_cnt;
+            if(output_cnt % m_column == 0)
+                std::cout << std::endl;
         }
-        TrainLabels[i]  = std::stoi(vdata[m_column]);
+        std::cout << std::endl
+                    << "TestLabel....\n";
+        for (auto &e : m_TestLabels)
+            std::cout << e << " ";
+        std::cout << std::endl;
     }
+
+    
+    int train_data_idx = 0;
+    int train_label_idx = 0;
+    // reading train data
+    while(i < data.size())
+    {
+        for (int j = 0; j < m_column; ++j)
+            m_TrainData[train_data_idx++] = data[i++];
+        m_Trainlabels[train_label_idx++] = data[i++];
+        if( train_label_idx >= m_train_row)
+            break;
+    }
+
+
+    {
+        std::cout << "TrainData....\n";
+        int output_cnt = 0;
+        
+        for (auto&e: m_TrainData)
+        {
+            std::cout << e << " ";
+            ++output_cnt;
+            if(output_cnt % m_column == 0)
+                std::cout << std::endl;
+        }
+        std::cout << std::endl
+                    << "TrainLabel....\n";
+        for (auto &e : m_Trainlabels)
+            std::cout << e << " ";
+        std::cout << std::endl;
+    }
+    
 }
 
-void KNN::readData(const std::string& fname)
+int KNN::GetDistance(std::vector<int>& Input, std::vector<int>& Traindata, int i)
 {
-    std::ifstream fin;
-    fin.open(fname);
-    assert(fin.is_open());
-    for (int i = 0; i < m_test_row; i++)
+    int Dist = 0;
+    for (int k = 0; k < Input.size(); ++k)
     {
-        for (int j = 0; j < m_column; j++)
-        {
-            fin >> TestData[i][j];
-        }
-        fin >> TestLabels[i];
+        int diff = Input[k] - Traindata[i++];
+        diff = diff * diff;
+        Dist += diff;
     }
-
-    for (int i = 0; i < m_train_row; i++)
-    {
-        for (int j = 0; j < m_column; j++)
-        {
-            fin >> TrainData[i][j];
-        }
-        fin >> TrainLabels[i];
-    }
+    return Dist;
 }
 
-void KNN::Print()
+int KNN::GetMinDistIndex(std::vector<int> &Distance)
 {
-    // std::cout << "**************Train Data***************" << std::endl;
-    for (int i = 0; i < 10; i++)
-    {
-        for (int j = 0; j < m_column; j++)
-        {
-            // std::cout << TrainData[i][j] << " ";
-        }
-        // std::cout << std::endl;
-    }
-
-    // std::cout << "**************Test Data***************" << std::endl;
-    for (int i = 0; i < 10; i++)
-    {
-        for (int j = 0; j < m_column; j++)
-        {
-            // std::cout << TestData[i][j] << " ";
-        }
-        // std::cout << std::endl;
-    }
-
-    // std::cout << "distance = " << GetDistance(TestData[0], TrainData[0]) << std::endl;
-    ;
-}
-
-int KNN::GetDistance(int Input[], int TrainData[])
-{
-    if (Input == nullptr)
-    {
-        // std::cout << "error!" << std::endl;
-        return -9999;
-    }
-
-    int Distance = 0;
-    for (int i = 0; i < m_column; i++)
-    {
-        Distance += (Input[i] - TrainData[i]) * (Input[i] - TrainData[i]);
-    }
-
-    return Distance;
-}
-
-int KNN::GetMinDistIndex(int Distance[])
-{
-    int Index = -1;
-    int DistMin = 99;
-    if (Distance == nullptr)
-    {
-        // std::cout << "error!" << std::endl;
-        return -9999;
-    }
-    for (int i = 0; i < m_train_row; i++)
+    int idx = -1;
+    if (Distance.empty())
+        return idx;
+    idx = 0;
+    int DistMin = 999999;
+    for (int i = 0; i < Distance.size(); i++)
     {
         if (Distance[i] < DistMin && Distance[i] >= 0)
         {
             DistMin = Distance[i];
-            Index = i;
+            idx = i;
         }
     }
-    Distance[Index] = -1; //找出最小值后,将其置为-1
-    return Index;
+    return idx;
 }
 
-int KNN::GetMaxSeq(int LabelMinIdx[])
+int KNN::GetMaxSeq(std::vector<int> &LabelMinIdx)
 {
-    std::map<int, int> LabelAppearTime; //key为Label值，value为出现次数
-    std::map<int, int>::iterator iter;
-    for (int i = 0; i < m_k; i++)
-    {
-        iter = LabelAppearTime.find(TrainLabels[LabelMinIdx[i]]);
-        if (iter != LabelAppearTime.end())
-            iter->second++;
-        else
-        {
-            LabelAppearTime.insert(std::pair<int, int>(TrainLabels[LabelMinIdx[i]], 1));
-        }
-    }
-
+    // std::map<uint32_t, uint32_t> LabelAppearTime; //key为Label值，value为出现次数
+    std::vector<uint32_t> LabelAppearTime(m_k);
+    uint32_t times = 0;
     int LabelMaxSeq = -1;
-    int times = 0;
-    for (iter = LabelAppearTime.begin(); iter != LabelAppearTime.end(); iter++)
+    for (uint32_t i = 0; i < m_k; ++i)
     {
-        if (iter->second > times)
+        // 找到第 i 个点的索引
+        int label = m_Trainlabels[LabelMinIdx[i]];
+        if (++LabelAppearTime[label] > times)
         {
-            times = iter->second;
-            LabelMaxSeq = iter->first;
+            times = LabelAppearTime[label];
+            LabelMaxSeq = label;
         }
     }
+    assert(LabelMaxSeq >= 0);
     return LabelMaxSeq;
 }
 
-int KNN::Classify(int Input[])
+int KNN::Classify(std::vector<int> &Input)
 {
     //Column是数据特征变量的个数
     //Row是DataSet的输入向量的长度
@@ -176,37 +156,37 @@ int KNN::Classify(int Input[])
 
   */
 
-    int Distance[MaxRow];
+    std::vector<int> Distance(m_train_row, 9999);
     for (int i = 0; i < m_train_row; i++)
     {
-        Distance[i] = GetDistance(Input, TrainData[i]);
+        Distance[i] = 9999;
+        int param = i * m_column;
+        Distance[i] = GetDistance(Input, m_TrainData, param);
     }
 
-    int LabelMinIdx[MaxK];
+    std::vector<int> LabelMinIdx(m_k, -1);
     for (int i = 0; i < m_k; i++)
     {
         LabelMinIdx[i] = GetMinDistIndex(Distance); //返回的是Label下标
+        Distance[LabelMinIdx[i]] = 9999;
     }
     return GetMaxSeq(LabelMinIdx);
-}
-
-int KNN::classify_all(int test_row)
-{
-    int CorrectNum = 0;
-    for (int i = 0; i < test_row; ++i)
-    {
-        if (Classify(TestData[i]) == TestLabels[i])
-            CorrectNum++;
-    }
-    return CorrectNum;
 }
 
 int KNN::CorrectRate()
 {
     // 对于每个TestData，利用Classify获得LabelsPredict，再和TestData的真实Label计算正确率
-    int CorrectNum = classify_all(m_test_row);
-    // std::cout << "correctNum: " << CorrectNum << " m_test_row: " << m_test_row << std::endl;
+    int CorrectNum = 0;
+    for (int i = 0; i < m_test_row; ++i)
+    {
+        std::vector<int> Input(m_column, 0);
+        for (int x = i * m_column, idx = 0; x < Input.size(); ++x)
+            Input[idx++] = m_TestData[x];
+        if (Classify(Input) == m_TestLabels[i])
+            CorrectNum++;
+    }
     int CorrectRate = (CorrectNum * 100) / m_test_row;
+    std::cout << "m_train_row = " << m_train_row << "\n";
     std::cout << "m_test_row = " << m_test_row << "\n";
     std::cout << "CorrectNum = " << CorrectNum << "\n";
     std::cout << "CorrectRate = " << CorrectRate << "%\n";
@@ -216,7 +196,7 @@ int KNN::CorrectRate()
 
 int main(int argc, char **argv)
 {
-    int k, row, col;
+    int k, col, test_row, test_col;
     std::cout << "Wo...\n";
     char *FileName;
     if (argc != 5)
@@ -225,25 +205,35 @@ int main(int argc, char **argv)
         exit(1);
     }
     k = atoi(argv[1]);
-    row = atoi(argv[2]);
-    col = atoi(argv[3]);
-    FileName = argv[4];
-
-    //KNN *k = new KNN(7,FileName,1000,3);
+    col = atoi(argv[2]);
+    test_row = atoi(argv[3]);
+    test_col = atoi(argv[4]);
+    FileName = "TitanicData2.csv";
 
     std::ifstream fs(FileName, std::ios::in);
-    std::vector<std::string> data;
-    
-    while (!fs.eof() && data.size()<row)
+    std::vector<int> data;
+
+    while (!fs.eof() && data.size() < (test_row+test_col) * (col + 1))
     {
-        std::string str;
-        getline(fs, str, '\n');
-        data.push_back(str);
+        int tmp;
+        fs >> tmp;
+        data.push_back(tmp);
     }
     std::cout << "read " << data.size() << " rows\n";
-    KNN *knn = new KNN(k, data, row, col);
-    knn->CorrectRate();
-    std::cout << knn->get_train_result();
+
+    {
+        std::cout << "first 5 rows\n";
+        for (int i = 0; i < 5 * (col + 1); ++i)
+        {
+            std::cout << data[i] << " ";
+            if(i >0 && (i+1)%(col+1) ==0)
+                std::cout << std::endl;
+        }
+    }
+
+    KNN knn(data, k, col, test_row, test_col);
+    knn.CorrectRate();
+    std::cout << knn.get_train_result();
 
     return 0;
 }
